@@ -1,0 +1,6 @@
+torch>=2.1
+numpy
+einops
+h5py
+hdf5storage
+tensorboard

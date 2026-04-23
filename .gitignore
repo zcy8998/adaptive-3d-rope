@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdf
+.DS_Store
+
+output_dir*/
+adaptive_vis/
+checkpoints/
+logs/
+wandb/
+plot_util/results/*.png
+plot_util/results/*.pdf
+
