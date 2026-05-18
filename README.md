@@ -1,25 +1,32 @@
 # Adaptive 3D-RoPE: Physics-Aligned Rotary Positional Encoding for Wireless Foundation Models
 
-This repository is the streamlined open-source release for the Adaptive 3D-RoPE project. It keeps the core code needed to train, evaluate, and few-shot fine-tune CSI foundation models, while removing paper-only plotting and visualization utilities.
+## Abstract
+
+Positional encoding plays a pivotal role in determining the extrapolation and generalization performance of wireless foundation models for channel state information (CSI) modeling, latent characterization, and task-specific prediction. However, existing CSI models inherit static or one-dimensional positional priors from natural language and vision architectures, which fundamentally misalign with the intrinsic physics of wireless channels by lacking explicit relative decay, collapsing the 3D spatio-temporal-frequency structure, and remaining scenariorigid. This paper proposes Adaptive 3D-RoPE, a physics-aligned rotary positional encoding that establishes the structural cornerstone for wireless foundation models. The framework integrates a learnable, axis-decoupled 3D frequency bank to explicitly disentangle multi-dimensional phase dependencies, coupled with a lightweight channel-conditioned controller that dynamically modulates the prior via compact global CSI descriptors. This sample-adaptive mechanism transforms positional encoding from a static transformer component into a dynamic, coherence-aware inductive bias to resolve heterogeneous channel physics. Extensive experiments across 100 datasets demonstrate the superiority of the proposed scheme in both scale extrapolation and zero-shot generalization. Compared to the state-of-the-art, our method achieves up to a 10.7 dB reduction in normalized mean square error (NMSE) under 8× antenna scale extrapolation. Given the same CSI input scales, our method can also improve zero-shot NMSE by 1.07 dB across unseen mobility scenarios and 0.90 dB in low-frequency-to-millimeter-wave tasks.
 
 ## Method Overview
-
+![framework](framework_01.png)
 The codebase provides one unified CSI MAE model with configurable positional encoding:
 
-- `rope_mode=none`: standard attention without RoPE
-- `rope_mode=learnable`: learnable mixed 3D-RoPE
-- `rope_mode=fixed`: fixed separable 3D-RoPE
+- `rope_mode=none`: No RoPE
+- `rope_mode=learnable`: learnable 3D-RoPE
+- `rope_mode=fixed`: fixed 3D-RoPE
 - `rope_mode=adaptive`: Adaptive 3D-RoPE with a dynamic controller
 
 ## Installation
 
-Create a Python environment and install:
+- Python 3.10 (Recommend to use Anaconda)
+- Install Python dependencies by running:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Expected Data Layout
+## Dataset
+### Pretrain Dataset
+https://huggingface.co/datasets/Chenyu8998/adaptive-3d-rope/train
+
+###  Expected Data Layout
 
 The loaders expect:
 
@@ -112,4 +119,12 @@ python cli.py finetune \
 This project is released under the MIT License. See `LICENSE`.
 
 ## Citation
-
+If you found our project helpful, please kindly cite our paper:
+```
+@article{zhang2026adaptive,
+  title={Adaptive 3D-RoPE: Physics-Aligned Rotary Positional Encoding for Wireless Foundation Models},
+  author={Zhang, Chenyu and Lyu, Xinchen and Ren, Chenshan and Liu, Shuhan and Cui, Qimei},
+  journal={arXiv preprint arXiv:2605.00968},
+  year={2026}
+}
+```
