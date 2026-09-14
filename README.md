@@ -1,106 +1,95 @@
 # Adaptive 3D-RoPE
 
-Minimal reference implementation of Adaptive 3D-RoPE for masked 3D CSI
-reconstruction. The public interface is locked to the released pure-RoPE,
-Std-only controller configuration:
-
-- `encoder_pe=none`, `decoder_pe=none`
-- `controller_token_groups=token_std`
-- `controller_architecture=token_only`
-- `controller_decoder_token_scope=visible_only`
+Adaptive 3D-RoPE is a CSI masked-autoencoder with rotary positional encoding whose frequency scales are predicted from visible CSI tokens. This repository contains the reproducible core implementation, six positional-encoding profiles, and the DeepMIMO/MaMIMO/QuaDRiGa preparation and baseline entry points.
 
 ![Adaptive 3D-RoPE framework](assets/framework.png)
 
 ## Install
 
-Use Python 3.11. Install the PyTorch wheel appropriate for the local CPU/CUDA
-platform, then install the remaining pinned dependencies:
+Use Python 3.11 and install a PyTorch 2.4.1 wheel matching your CPU or CUDA driver, then install the pinned dependencies:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-## Data Layout
+The released environment was validated with PyTorch 2.4.1+cu121 on an NVIDIA H800. CUDA is optional for the unit tests.
 
-CSI tensors are external to this repository. The CLI expects one directory per
-dataset, each containing MATLAB v7.3/HDF5 tensors and its physical
-configuration:
+## Data layout
+
+CSI data is not redistributed. Set `DATA_ROOT` to a local directory containing one or more datasets in this layout:
 
 ```text
 DATA_ROOT/
-  D1/
-    train_data.mat  # H_train
-    val_data.mat    # H_val
-    test_data.mat   # H_test
-    config.mat
+  D1/{train,val,test}_data.mat
+  D1/config.mat
 ```
 
-Each CSI tensor has shape `(U, K, T, B)` and all spatial dimensions must be
-divisible by the patch size (4). Use the same layout for D2, D3, and additional
-datasets.
+Use the scripts in `data_generation/` to prepare compatible derived data. Original QuaDRiGa, DeepMIMO and MaMIMO-UAV data remain subject to their own licenses and download terms.
 
-## Train And Evaluate
+## Profiles and evaluation
 
-The release configuration is encoded by the CLI; no controller or positional
-arguments are required.
+`configs/position_encoding_profiles.yaml` defines six released profiles:
+
+| Profile | Positional encoding |
+| --- | --- |
+| `ape_1d` | 1D sinusoidal APE |
+| `ape_3d` | 3D sinusoidal APE |
+| `fixed_1d` | fixed 1D RoPE |
+| `fixed_3d` | fixed 3D RoPE |
+| `learnable_3d` | learnable 3D RoPE |
+| `proposed_std_only` | adaptive 3D-RoPE |
+
+Download a matching checkpoint from the [Hugging Face model repository](https://huggingface.co/Chenyu8998/adaptive-3d-rope), then evaluate it by selecting the same profile:
 
 ```bash
-python cli.py train \
-  --dataset D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13,D14,D15,D16 \
-  --data_dir DATA_ROOT --mask_type all --mask_ratio 0.75 \
-  --batch_size 64 --epochs 150 --num_workers 8 --seed 42 --snr_db 20 \
-  --output_dir OUTPUT_ROOT/std_only_pretrain
-
-python cli.py eval \
-  --dataset D1 --data_dir DATA_ROOT --mask_type random --mask_ratio 0.85 \
-  --eval_split test --batch_size 8 --num_workers 0 --seed 42 --snr_db 20 \
-  --eval_mask_seed 42 --strict_load \
-  --resume CHECKPOINT_PATH/checkpoint-149.pth \
-  --output_dir OUTPUT_ROOT/d1_eval
+python cli.py eval --profile proposed_std_only \
+  --data_dir "$DATA_ROOT" --dataset D1 \
+  --resume checkpoints/proposed_std_only/checkpoint-149.pth \
+  --output_dir outputs/proposed_std_only
 ```
 
-`configs/std_only_public.example.yaml` records the same release settings for
-experiment tracking.
-
-## Weights
-
-Weights are not tracked in Git and are not uploaded to Hugging Face in this
-release. The planned public HF model package contains only:
-
-```text
-proposed_std_only_epoch149/checkpoint-149.pth
-config.yaml
-README.md
-```
-
-The expected SHA-256 for `checkpoint-149.pth` is:
-
-```text
-9c3227ee446c316ab564bc481c33d94b7ea13b7d2727c5af14beda36f6e5650b
-```
-
-Verify any downloaded checkpoint before evaluation:
+To compare another positional encoding, change both `--profile` and the checkpoint directory:
 
 ```bash
-sha256sum CHECKPOINT_PATH/checkpoint-149.pth
+python cli.py eval --profile ape_3d --data_dir "$DATA_ROOT" --dataset D1 \
+  --resume checkpoints/ape_3d/checkpoint-149.pth --output_dir outputs/ape_3d
+python cli.py eval --profile fixed_1d --data_dir "$DATA_ROOT" --dataset D1 \
+  --resume checkpoints/fixed_1d/checkpoint-149.pth --output_dir outputs/fixed_1d
 ```
 
-Raw and processed CSI data are not distributed through this repository or the
-future HF model repository. Their source licenses and redistribution conditions
-must be reviewed before a separate HF dataset repository is created.
+The loader checks saved checkpoint arguments against the selected profile and uses strict state-dict loading. Do not mix profiles and checkpoints.
 
-## Citation
+The proposed profile is pure RoPE: `encoder_pe=none`, `decoder_pe=none`, `rope_mode=adaptive`, `rope_axes=3d`, and a visible-only `token_std` controller.
 
-```bibtex
-@article{zhang2026adaptive,
-  title={Adaptive 3D-RoPE: Channel-Driven Rotary Positional Embedding for Wireless Foundation Models},
-  author={Zhang, Chenyu and Lyu, Xinchen and Ren, Chenshan and Hou, Yanzhao and Zhang, Xuefei and Liu, Shuhan and Cui, Qimei},
-  year={2026}
-}
+## Training
+
+Train any profile from scratch with the same profile switch:
+
+```bash
+python cli.py train --profile proposed_std_only --data_dir "$DATA_ROOT" \
+  --dataset D1 --epochs 150 --output_dir outputs/train_proposed
 ```
 
-## License
+`finetune` and `calibrate_controller` use the same profile contract.
 
-The source code is released under Apache-2.0. See `LICENSE` and `NOTICE`.
+## DeepMIMO and data preparation
+
+`deepmimo_train` and `deepmimo_eval` expose the reusable encoder and MLP, CNN, LSTM, beam-codebook, CsiNet and TransNet baselines. They require a local DeepMIMO scenario and task arrays; use `--baseline` for a baseline or `--profile ... --pretrained ... --baseline ours` for encoder transfer.
+
+The `data_generation/` scripts are public preparation interfaces only: `generate_extrapolation_v3.m` and `generate_controlled_quadriga_diagnostics.m` use a user-supplied QuaDRiGa installation, while `deepmimo/` and `mamimo_uav/` prepare derived arrays without shipping source data.
+
+The optional LWM beam scripts under `scripts/` require a separately obtained LWM 1.1 pretraining checkpoint and do not consume the six CSI-MAE weights.
+
+## Weights and checksums
+
+The six public weights are hosted at `https://huggingface.co/Chenyu8998/adaptive-3d-rope`. Download them with Git LFS or the Hugging Face web interface. Verify every file before evaluation:
+
+```bash
+sha256sum -c checksums.sha256
+```
+
+The repository intentionally tracks no data, model weights, training outputs or large binaries. Hugging Face model files include the profile configuration and the same SHA-256 manifest.
+
+## Citation and license
+
+Please cite the accompanying Adaptive 3D-RoPE paper when using this code. The code is released under the license in [LICENSE](LICENSE); third-party notices are collected in [NOTICE](NOTICE) and the dataset-specific notices under `datasets/`.

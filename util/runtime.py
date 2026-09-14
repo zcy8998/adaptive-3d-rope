@@ -24,6 +24,7 @@ from util.cli import POSITIONAL_ENCODING_ALIASES
 from util.checkpoint import load_checkpoint as load_torch_checkpoint
 from util.data import CSIDataset, data_load_main
 from util.eval_reproducibility import stable_eval_mask_seed
+from util.profiles import validate_checkpoint_profile
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
 
@@ -530,6 +531,9 @@ def _install_rope_oracle_scale(args, model, freeze_model: bool):
 
 def _load_checkpoint(path, model_without_ddp, optimizer=None, loss_scaler=None, load_state=False, strict=False):
     checkpoint = load_torch_checkpoint(path, map_location="cpu")
+    profile = getattr(model_without_ddp, "_public_profile", None)
+    if profile:
+        validate_checkpoint_profile(checkpoint, profile)
     message = model_without_ddp.load_state_dict(checkpoint["model"], strict=strict)
     print(f"Loaded checkpoint from: {path}")
     if checkpoint.get("oracle_scale_only", False):
@@ -1238,6 +1242,7 @@ def run_train(args):
     log_writer = _build_log_writer(args)
 
     model = _build_model(args, device)
+    model._public_profile = args.profile
     model.to(device)
     probe_hooks = _configure_rope_probe(args, model)
     _install_rope_oracle_scale(args, model, freeze_model=True)
@@ -1379,6 +1384,7 @@ def run_finetune(args):
     log_writer = _build_log_writer(args)
 
     model = _build_model(args, device)
+    model._public_profile = args.profile
     model.to(device)
     if getattr(args, "finetune", "") and not getattr(args, "resume", ""):
         _load_checkpoint(args.finetune, model, strict=getattr(args, "strict_load", False))
@@ -1494,6 +1500,7 @@ def run_eval(args):
     _write_run_manifest(args, device, "eval")
 
     model = _build_model(args, device)
+    model._public_profile = args.profile
     model.to(device)
     _install_rope_oracle_scale(args, model, freeze_model=False)
     _load_checkpoint(args.resume, model, strict=getattr(args, "strict_load", False))
@@ -1543,6 +1550,7 @@ def run_calibrate_controller(args):
     _write_run_manifest(args, device, "calibrate_controller")
 
     model = _build_model(args, device)
+    model._public_profile = args.profile
     model.to(device)
     _load_checkpoint(args.resume, model)
     preserved_descriptor_statistics = {}

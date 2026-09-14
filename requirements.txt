@@ -3,6 +3,7 @@
 torch==2.4.1
 numpy==1.26.4
 einops==0.8.1
+PyYAML==6.0.3
 h5py==3.16.0
 hdf5storage==0.2.2
 tensorboard==2.20.0
