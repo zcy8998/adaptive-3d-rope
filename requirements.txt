@@ -1,0 +1,9 @@
+# Validated with Python 3.11.15 and PyTorch 2.4.1+cu121.
+# Install the PyTorch wheel matching the local CPU/CUDA platform first.
+torch==2.4.1
+numpy==1.26.4
+einops==0.8.1
+h5py==3.16.0
+hdf5storage==0.2.2
+tensorboard==2.20.0
+pytest==9.1.1

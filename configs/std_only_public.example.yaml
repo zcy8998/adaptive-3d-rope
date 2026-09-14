@@ -1,0 +1,20 @@
+# Released Adaptive 3D-RoPE configuration (record-keeping only).
+model: csi_mae_base
+rope_mode: adaptive
+rope_axes: 3d
+rope_theta: 10
+encoder_pe: none
+decoder_pe: none
+controller_mode: compact
+controller_features: ""
+controller_token_groups: token_std
+controller_architecture: token_only
+controller_decoder_token_scope: visible_only
+controller_token_normalization: frozen
+controller_scale_granularity: axis_head
+controller_token_hidden_dim: 64
+adaptive_scope: encoder_decoder
+controller_max_scale: 5
+dataset: D1
+data_dir: DATA_ROOT
+checkpoint: CHECKPOINT_PATH/checkpoint-149.pth
