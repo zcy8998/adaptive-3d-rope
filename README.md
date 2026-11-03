@@ -2,7 +2,18 @@
 
 Adaptive 3D-RoPE is a CSI masked-autoencoder with rotary positional encoding whose frequency scales are predicted from visible CSI tokens. This repository contains the reproducible core implementation, six positional-encoding profiles, and the DeepMIMO/MaMIMO/QuaDRiGa preparation and baseline entry points.
 
-![Adaptive 3D-RoPE framework](assets/framework.png)
+[Paper (arXiv)](https://arxiv.org/abs/2605.00968v2) · [Implementation](#method-and-implementation) · [Citation](#citation)
+
+![Adaptive 3D-RoPE architecture with learnable axis-wise frequencies, modulation from visible CSI, and query/key rotation](assets/framework.png)
+
+## Method and implementation
+
+The released `proposed_std_only` profile learns rotary frequencies along the time, subcarrier, and antenna axes. In the encoder and decoder, a compact controller uses feature-wise standard deviations (`token_std`) over visible CSI tokens to predict one scale per sample, axis, and attention head. The scaled frequencies determine the phases used to rotate queries and keys. Absolute positional embeddings are disabled in both stages.
+
+- [Positional-encoding profiles](configs/position_encoding_profiles.yaml#L29) lists the six configurations, including [`proposed_std_only`](configs/position_encoding_profiles.yaml#L100).
+- [CSI-MAE frequency banks](models/csi_mae.py#L361) and [3D coordinates](util/rope.py#L48) define the rotary position inputs.
+- [Visible-token statistics](models/coherence_controller.py#L556) and [controller scaling](models/coherence_controller.py#L716) implement the adaptive modulation.
+- [Rotary phase construction](models/csi_mae.py#L740) and [Q/K rotation in attention](util/video_vit.py#L266) apply the encoding.
 
 ## Install
 
@@ -28,7 +39,7 @@ Use the scripts in `data_generation/` to prepare compatible derived data. Origin
 
 ## Profiles and evaluation
 
-`configs/position_encoding_profiles.yaml` defines six released profiles:
+The six released profiles are listed below.
 
 | Profile | Positional encoding |
 | --- | --- |
@@ -59,8 +70,6 @@ python cli.py eval --profile fixed_1d --data_dir "$DATA_ROOT" --dataset D1 \
 
 The loader checks saved checkpoint arguments against the selected profile and uses strict state-dict loading. Do not mix profiles and checkpoints.
 
-The proposed profile is pure RoPE: `encoder_pe=none`, `decoder_pe=none`, `rope_mode=adaptive`, `rope_axes=3d`, and a visible-only `token_std` controller.
-
 ## Training
 
 Train any profile from scratch with the same profile switch:
@@ -90,6 +99,22 @@ sha256sum -c checksums.sha256
 
 The repository intentionally tracks no data, model weights, training outputs or large binaries. Hugging Face model files include the profile configuration and the same SHA-256 manifest.
 
-## Citation and license
+## Citation
 
-Please cite the accompanying Adaptive 3D-RoPE paper when using this code. The code is released under the license in [LICENSE](LICENSE); third-party notices are collected in [NOTICE](NOTICE) and the dataset-specific notices under `datasets/`.
+Please cite the [arXiv preprint](https://arxiv.org/abs/2605.00968v2) if you use this code.
+
+```bibtex
+@misc{zhang2026adaptive,
+  title         = {Adaptive {3D-RoPE}: Physics-Aligned Rotary Positional Encoding for Wireless Foundation Models},
+  author        = {Zhang, Chenyu and Lyu, Xinchen and Ren, Chenshan and Hou, Yanzhao and Zhang, Xuefei and Liu, Shuhan and Cui, Qimei},
+  year          = {2026},
+  eprint        = {2605.00968},
+  archivePrefix = {arXiv},
+  primaryClass  = {eess.SP},
+  url           = {https://arxiv.org/abs/2605.00968v2}
+}
+```
+
+## License
+
+The code is released under the license in [LICENSE](LICENSE). Third-party notices are in [NOTICE](NOTICE) and the dataset-specific notices under `datasets/`.
